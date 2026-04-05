@@ -54,7 +54,6 @@
             box-sizing: border-box;
             font-size: 16px;
         }
-        /* Estilo para resaltar la cámara */
         .input-camera {
             border: 2px solid var(--camera-color);
             background-color: #fff3e0;
@@ -190,7 +189,7 @@
     <button type="button" class="export-btn" id="btnExportar" onclick="exportarPDF()">📄 Exportar PDF (Páginas separadas)</button>
 
     <script>
-        // REGISTRO DEL SERVICE WORKER (SW.JS) PARA INSTALACIÓN EN CELULAR
+        // Registro del Service Worker para la App
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', function() {
             navigator.serviceWorker.register('sw.js').then(function(registration) {
@@ -254,7 +253,6 @@
             const btn = document.getElementById('btnAgregar');
             btn.disabled = true; btn.innerText = "Guardando...";
 
-            // Lógica para detectar si se usó la cámara o la galería
             const fotoCamara = document.getElementById('fotoCamara').files[0];
             const fotoGaleria = document.getElementById('fotoGaleria').files[0];
             const archivoSeleccionado = fotoCamara || fotoGaleria;
@@ -268,7 +266,6 @@
                     foto: url, siguienteAlarma: new Date(y, m-1, d, h, min)
                 });
                 
-                // Limpiar los campos del medicamento
                 document.getElementById('medicamento').value = '';
                 document.getElementById('fotoCamara').value = '';
                 document.getElementById('fotoGaleria').value = '';
@@ -321,8 +318,6 @@
 
             for(const pac in grupos) {
                 opciones += `<option value="${pac}">`;
-                
-                // Divisor nativo para salto de página en PDF
                 if (!primerPaciente) html += `<div class="html2pdf__page-break"></div>`;
                 primerPaciente = false;
 
@@ -330,7 +325,7 @@
                     <div class="paciente-grupo">
                         <div class="paciente-titulo-contenedor">
                             <h4>👤 Paciente: ${pac}</h4>
-                            <button class="btn-borrar-paciente" data-html2canvas-ignore="true" onclick="eliminarPaciente('${pac}')">🗑️ Borrar Paciente Completo</button>
+                            <button class="btn-borrar-paciente" data-html2canvas-ignore="true" onclick="eliminarPaciente('${pac}')">🗑️ Borrar Paciente</button>
                         </div>
                 `;
 
