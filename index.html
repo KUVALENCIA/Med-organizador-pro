@@ -18,6 +18,7 @@
             --card-bg: #ffffff;
             --secondary-color: #757575;
             --camera-color: #ff9800;
+            --whatsapp-color: #25D366; /* Color oficial de WhatsApp */
         }
         html, body {
             height: auto;
@@ -90,6 +91,19 @@
             padding: 8px;
             font-size: 14px;
         }
+        /* Estilo del botón de WhatsApp */
+        .btn-whatsapp {
+            background-color: var(--whatsapp-color);
+            color: white;
+            border: none;
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 4px;
+            width: 100%;
+        }
+        .btn-whatsapp:hover {
+            background-color: #128C7E;
+        }
         .paciente-grupo {
             border: 2px solid var(--primary-color);
             border-radius: 8px;
@@ -150,15 +164,16 @@
     <div class="card" id="formCard">
         <h2>Registro Múltiple de Pacientes</h2>
         <div id="contenedorFormulario">
+            
             <label>Nombre del Paciente:</label>
-            <input type="text" id="paciente" list="listaPacientesOpciones" placeholder="Escriba el nombre">
+            <input type="text" id="paciente" list="listaPacientesOpciones" placeholder="Escriba el nombre" oninput="autocompletarPaciente()">
             <datalist id="listaPacientesOpciones"></datalist>
 
             <label>Fecha de Nacimiento:</label>
             <input type="date" id="fechaNacimiento" onchange="calcularEdad()">
 
             <label>Edad:</label>
-            <input type="number" id="edad" placeholder="Se calcula al poner la fecha" min="0">
+            <input type="number" id="edad" placeholder="Se calcula automáticamente" min="0">
 
             <label>Fecha de Inicio del Tratamiento:</label>
             <input type="date" id="fechaInicio">
@@ -203,11 +218,11 @@
     <button type="button" class="export-btn" id="btnExportar" onclick="exportarPDF()">📄 Exportar PDF (Páginas separadas)</button>
 
     <script>
-        // REGISTRO DEL SERVICE WORKER PARA QUE SEA APP (PWA)
+        // Registro del Service Worker
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', function() {
             navigator.serviceWorker.register('sw.js').catch(function(err) {
-              console.log('ServiceWorker fallo el registro: ', err);
+              console.log('ServiceWorker fallo: ', err);
             });
           });
         }
@@ -215,30 +230,70 @@
         let medicamentos = [];
         document.getElementById('fechaInicio').valueAsDate = new Date();
 
-        // GUARDADO EN MEMORIA PERMANENTE DEL CELULAR
+        // SISTEMA INTELIGENTE DE GUARDADO Y RESCATE DE HISTORIAL
         function guardarEnMemoria() {
-            localStorage.setItem('datosMedicosGuardados', JSON.stringify(medicamentos));
-        }
+            let guardadoExitoso = false;
+            let alertaMostrada = false;
 
-        // CARGA DE MEMORIA AL INICIAR
-        function cargarDeMemoria() {
-            const datos = localStorage.getItem('datosMedicosGuardados');
-            if(datos) {
-                medicamentos = JSON.parse(datos);
-                // Restauramos el formato de las fechas de las alarmas
-                medicamentos.forEach(med => {
-                    if(med.siguienteAlarma) {
-                        med.siguienteAlarma = new Date(med.siguienteAlarma);
+            while (!guardadoExitoso) {
+                try {
+                    localStorage.setItem('datosMedicosGuardados', JSON.stringify(medicamentos));
+                    guardadoExitoso = true;
+                } catch(e) {
+                    let fotoBorrada = false;
+                    for (let i = 0; i < medicamentos.length; i++) {
+                        if (medicamentos[i].foto && medicamentos[i].foto !== "") {
+                            medicamentos[i].foto = ""; 
+                            fotoBorrada = true;
+                            
+                            if (!alertaMostrada) {
+                                alert("⚙️ Optimización Automática: La memoria de tu celular se llenó. Para proteger el historial del paciente, la aplicación ha quitado las fotos más antiguas. ¡Tus registros están a salvo!");
+                                alertaMostrada = true;
+                            }
+                            break; 
+                        }
                     }
-                });
-                mostrarLista();
+
+                    if (!fotoBorrada) {
+                        alert("🚨 Alerta Crítica: El almacenamiento está saturado al 100%. Por favor elimina un paciente antiguo para continuar.");
+                        medicamentos.pop(); 
+                        break;
+                    }
+                }
             }
         }
 
-        // Iniciar carga de datos al abrir la app
+        // Carga Segura de Memoria
+        function cargarDeMemoria() {
+            const datos = localStorage.getItem('datosMedicosGuardados');
+            if(datos) {
+                try {
+                    medicamentos = JSON.parse(datos);
+                    medicamentos.forEach(med => {
+                        if(med.siguienteAlarma) {
+                            med.siguienteAlarma = new Date(med.siguienteAlarma);
+                        }
+                    });
+                    mostrarLista();
+                } catch(e) {
+                    console.log("Error leyendo memoria", e);
+                }
+            }
+        }
+
         cargarDeMemoria();
 
-        // CÁLCULO DE EDAD AUTOMÁTICO
+        function autocompletarPaciente() {
+            const nombreIngresado = document.getElementById('paciente').value.trim().toUpperCase();
+            const pacienteExistente = medicamentos.find(m => m.paciente === nombreIngresado);
+            if(pacienteExistente) {
+                if(pacienteExistente.fechaNacimiento) {
+                    document.getElementById('fechaNacimiento').value = pacienteExistente.fechaNacimiento;
+                    calcularEdad();
+                }
+            }
+        }
+
         function calcularEdad() {
             const fechaNac = document.getElementById('fechaNacimiento').value;
             if (fechaNac) {
@@ -250,7 +305,6 @@
                 if (mes < 0 || (mes === 0 && hoy.getDate() < cumpleanos.getDate())) {
                     edadCalculada--;
                 }
-                
                 document.getElementById('edad').value = edadCalculada;
             }
         }
@@ -276,14 +330,16 @@
                 img.onload = function() {
                     try {
                         const canvas = document.createElement('canvas');
-                        const anchoMaximo = 400;
+                        const anchoMaximo = 300; 
                         let proporcion = anchoMaximo / img.width;
-                        canvas.width = anchoMaximo;
+                        if(proporcion > 1) proporcion = 1;
+                        
+                        canvas.width = img.width * proporcion;
                         canvas.height = img.height * proporcion;
                         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                        callback(canvas.toDataURL('image/jpeg', 0.7));
+                        callback(canvas.toDataURL('image/jpeg', 0.6));
                     } catch (error) {
-                        callback(e.target.result);
+                        callback("");
                     }
                 };
                 img.src = e.target.result;
@@ -303,7 +359,7 @@
             const hor = document.getElementById('hora').value;
 
             if(!pac || !fNac || !edadPac || !fIn || !med || isNaN(fNum) || !hor || !gra) {
-                alert("Complete todos los campos obligatorios."); return;
+                alert("Por favor, complete todos los campos obligatorios."); return;
             }
 
             const btn = document.getElementById('btnAgregar');
@@ -316,9 +372,10 @@
             const guardar = (url) => {
                 const [y, m, d] = fIn.split('-');
                 const [h, min] = hor.split(':');
+                
                 medicamentos.push({
                     paciente: pac, 
-                    fechaNacimiento: fNac,
+                    fechaNacimiento: fNac, 
                     edad: edadPac,
                     fechaInicio: fIn, 
                     medicamento: med,
@@ -329,6 +386,8 @@
                     siguienteAlarma: new Date(y, m-1, d, h, min)
                 });
                 
+                guardarEnMemoria(); 
+                
                 document.getElementById('medicamento').value = '';
                 document.getElementById('fotoCamara').value = '';
                 document.getElementById('fotoGaleria').value = '';
@@ -336,7 +395,6 @@
                 document.getElementById('frecuenciaNum').value = '';
                 document.getElementById('hora').value = '';
                 
-                guardarEnMemoria(); // Actualiza la memoria local
                 mostrarLista();
                 btn.disabled = false; btn.innerText = "➕ Agregar a la Lista";
             };
@@ -349,19 +407,52 @@
         }
 
         function eliminarPaciente(nombre) {
-            if(confirm(`¿Eliminar a ${nombre} y sus medicinas?`)) {
+            if(confirm(`¿Desea borrar a ${nombre} de la aplicación?`)) {
                 medicamentos = medicamentos.filter(m => m.paciente !== nombre);
-                guardarEnMemoria(); // Actualiza la memoria local
+                guardarEnMemoria();
                 mostrarLista();
             }
         }
 
         function eliminarMedicamento(index) {
-            if(confirm("¿Eliminar este medicamento?")) {
+            if(confirm("¿Borrar este medicamento específico?")) {
                 medicamentos.splice(index, 1);
-                guardarEnMemoria(); // Actualiza la memoria local
+                guardarEnMemoria();
                 mostrarLista();
             }
+        }
+
+        // NUEVA FUNCIÓN: Enviar información por WhatsApp con formato bonito
+        function enviarWhatsApp(nombrePaciente) {
+            // Filtramos las medicinas solo de este paciente
+            const medsPaciente = medicamentos.filter(m => m.paciente === nombrePaciente);
+            if(medsPaciente.length === 0) return;
+
+            // Obtenemos los datos generales
+            const datosPac = medsPaciente[0];
+            const fNac = datosPac.fechaNacimiento ? datosPac.fechaNacimiento.split('-').reverse().join('/') : '--/--/----';
+            const edad = datosPac.edad ? datosPac.edad : '--';
+
+            // Armamos el texto con emojis
+            let texto = `🏥 *REPORTE MÉDICO* 🏥\n\n`;
+            texto += `👤 *Paciente:* ${nombrePaciente}\n`;
+            texto += `🎂 *Nacimiento:* ${fNac}\n`;
+            texto += `⏳ *Edad:* ${edad} años\n\n`;
+            texto += `📋 *Tratamientos Activos:*\n`;
+
+            medsPaciente.forEach(m => {
+                texto += `\n💊 *${m.medicamento}* (${m.gramaje})\n`;
+                texto += `   ⏱️ *Frecuencia:* Cada ${m.frecuenciaNum} ${m.frecuenciaTipo}\n`;
+            });
+
+            texto += `\n-----------------------\n`;
+            texto += `_Reporte generado desde Organizador Médico Pro_ 🩺`;
+
+            // Codificamos el texto para que la URL de WhatsApp lo entienda
+            const textoCodificado = encodeURIComponent(texto);
+            
+            // Abrimos WhatsApp
+            window.open(`https://wa.me/?text=${textoCodificado}`, '_blank');
         }
 
         function mostrarLista() {
@@ -387,7 +478,6 @@
                 if (!primerPaciente) html += `<div class="html2pdf__page-break"></div>`;
                 primerPaciente = false;
 
-                // Extraemos la información del primer registro de este paciente
                 const datosPac = grupos[pac][0].data;
                 const fNac = datosPac.fechaNacimiento ? datosPac.fechaNacimiento.split('-').reverse().join('/') : '--/--/----';
                 const edad = datosPac.edad ? datosPac.edad : '--';
@@ -399,6 +489,7 @@
                             <div class="paciente-datos-extra">
                                 🎂 Nacimiento: ${fNac} &nbsp;|&nbsp; ⏳ Edad: ${edad} años
                             </div>
+                            <button class="btn-whatsapp" data-html2canvas-ignore="true" onclick="enviarWhatsApp('${pac}')">📲 Enviar Reporte por WhatsApp</button>
                             <button class="btn-borrar-paciente" data-html2canvas-ignore="true" onclick="eliminarPaciente('${pac}')">🗑️ Borrar Paciente</button>
                         </div>
                 `;
@@ -427,18 +518,21 @@
         function exportarPDF() {
             if(medicamentos.length === 0) return alert("Lista vacía");
             const btn = document.getElementById('btnExportar');
-            btn.innerText = "Procesando..."; btn.disabled = true;
+            btn.innerText = "Generando Reporte..."; btn.disabled = true;
 
             const opt = {
                 margin: 10,
-                filename: 'Reporte_Pacientes.pdf',
+                filename: 'Reporte_Historial_Pacientes.pdf',
                 pagebreak: { mode: ['css', 'avoid-all'] },
-                image: { type: 'jpeg', quality: 0.98 },
+                image: { type: 'jpeg', quality: 0.95 },
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
             html2pdf().set(opt).from(document.getElementById('areaImpresion')).save().then(() => {
+                btn.innerText = "📄 Exportar PDF (Páginas separadas)"; btn.disabled = false;
+            }).catch(e => {
+                alert("Error al crear PDF. El archivo es muy grande.");
                 btn.innerText = "📄 Exportar PDF (Páginas separadas)"; btn.disabled = false;
             });
         }
@@ -461,7 +555,7 @@
                 }
             });
             if(cambio) {
-                guardarEnMemoria(); // Guardamos las nuevas alarmas en la memoria
+                guardarEnMemoria();
                 mostrarLista();
             }
         }, 15000);
