@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organizador Médico Pro - Cuidadores</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="app_icon.png">
+    <meta name="theme-color" content="#00796b">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #00796b;
+            --bg-color: #e0f2f1;
+            --danger-color: #e53935;
+            --card-bg: #ffffff;
+            --secondary-color: #757575;
+            --camera-color: #ff9800;
+        }
+        html, body {
+            height: auto;
+            min-height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 10px;
+            color: #333;
+        }
+        h2, h3 {
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 15px;
+            color: #444;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        /* Estilo para resaltar la cámara */
+        .input-camera {
+            border: 2px solid var(--camera-color);
+            background-color: #fff3e0;
+        }
+        .frecuencia-inputs {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: background-color 0.3s;
+        }
+        button:disabled {
+            background-color: #999 !important;
+            cursor: not-allowed;
+        }
+        button.export-btn {
+            background-color: #1e88e5;
+            margin-top: 20px;
+        }
+        .btn-limpiar {
+            background-color: var(--secondary-color);
+            margin-top: 10px;
+        }
+        .btn-eliminar {
+            background-color: var(--danger-color);
+            margin-top: 10px;
+            padding: 8px;
+            font-size: 14px;
+        }
+        .paciente-grupo {
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #ffffff;
+        }
+        .paciente-titulo-contenedor {
+            background: var(--primary-color);
+            color: white;
+            padding: 15px;
+            margin: -15px -15px 15px -15px;
+            border-radius: 6px 6px 0 0;
+            text-align: center;
+        }
+        .btn-borrar-paciente {
+            background-color: #b71c1c;
+            color: white;
+            border: none;
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 4px;
+            width: 100%;
+        }
+        .medicamento-item {
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+            page-break-inside: avoid !important;
+        }
+        .medicamento-item img {
+            max-width: 120px;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: block;
+        }
+        .proxima-toma {
+            color: #d84315;
+            font-weight: bold;
+            background: #fbe9e7;
+            padding: 6px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="formCard">
+        <h2>Registro Múltiple de Pacientes</h2>
+        <div id="contenedorFormulario">
+            <label>Nombre del Paciente:</label>
+            <input type="text" id="paciente" list="listaPacientesOpciones" placeholder="Escriba el nombre">
+            <datalist id="listaPacientesOpciones"></datalist>
+
+            <label>Fecha de Inicio:</label>
+            <input type="date" id="fechaInicio">
+
+            <label>Medicamento:</label>
+            <input type="text" id="medicamento" placeholder="Nombre del fármaco">
+
+            <label>📷 Tomar Foto (Cámara Directa):</label>
+            <input type="file" id="fotoCamara" accept="image/*" capture="environment" class="input-camera">
+
+            <label>📁 Seleccionar de Galería:</label>
+            <input type="file" id="fotoGaleria" accept="image/*">
+
+            <label>Gramaje y Dosis:</label>
+            <input type="text" id="gramaje" placeholder="Ej. 500mg - 1 tableta">
+
+            <label>Frecuencia de Toma:</label>
+            <div class="frecuencia-inputs">
+                <input type="number" id="frecuenciaNum" placeholder="Ej: 8" min="1">
+                <select id="frecuenciaTipo">
+                    <option value="horas">Hora(s)</option>
+                    <option value="días">Día(s)</option>
+                    <option value="semanas">Semana(s)</option>
+                    <option value="meses">Mes(es)</option>
+                </select>
+            </div>
+
+            <label>Hora de la primera toma:</label>
+            <input type="time" id="hora">
+
+            <button type="button" id="btnAgregar" onclick="procesarFormulario()">➕ Agregar a la Lista</button>
+            <button type="button" class="btn-limpiar" onclick="limpiarTodoElFormulario()">🔄 Nuevo Paciente (Limpiar Todo)</button>
+        </div>
+    </div>
+
+    <div class="card" id="areaImpresion">
+        <div id="listaMedicamentos">
+            <p style="text-align:center; color:#777;">Sin datos.</p>
+        </div>
+    </div>
+
+    <button type="button" class="export-btn" id="btnExportar" onclick="exportarPDF()">📄 Exportar PDF (Páginas separadas)</button>
+
+    <script>
+        // REGISTRO DEL SERVICE WORKER (SW.JS) PARA INSTALACIÓN EN CELULAR
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', function() {
+            navigator.serviceWorker.register('sw.js').then(function(registration) {
+              console.log('ServiceWorker registrado correctamente.');
+            }, function(err) {
+              console.log('ServiceWorker fallo el registro: ', err);
+            });
+          });
+        }
+        
+        let medicamentos = [];
+        document.getElementById('fechaInicio').valueAsDate = new Date();
+
+        function limpiarTodoElFormulario() {
+            document.getElementById('paciente').value = '';
+            document.getElementById('fechaInicio').valueAsDate = new Date();
+            document.getElementById('medicamento').value = '';
+            document.getElementById('fotoCamara').value = '';
+            document.getElementById('fotoGaleria').value = '';
+            document.getElementById('gramaje').value = '';
+            document.getElementById('frecuenciaNum').value = '';
+            document.getElementById('frecuenciaTipo').value = 'horas';
+            document.getElementById('hora').value = '';
+        }
+
+        function procesarImagen(archivo, callback) {
+            const lector = new FileReader();
+            lector.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        const anchoMaximo = 400;
+                        let proporcion = anchoMaximo / img.width;
+                        canvas.width = anchoMaximo;
+                        canvas.height = img.height * proporcion;
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        callback(canvas.toDataURL('image/jpeg', 0.7));
+                    } catch (error) {
+                        callback(e.target.result);
+                    }
+                };
+                img.src = e.target.result;
+            };
+            lector.readAsDataURL(archivo);
+        }
+
+        function procesarFormulario() {
+            const pac = document.getElementById('paciente').value.trim().toUpperCase();
+            const fIn = document.getElementById('fechaInicio').value;
+            const med = document.getElementById('medicamento').value.trim();
+            const gra = document.getElementById('gramaje').value.trim();
+            const fNum = parseInt(document.getElementById('frecuenciaNum').value);
+            const fTip = document.getElementById('frecuenciaTipo').value;
+            const hor = document.getElementById('hora').value;
+
+            if(!pac || !fIn || !med || isNaN(fNum) || !hor || !gra) {
+                alert("Complete todos los campos obligatorios."); return;
+            }
+
+            const btn = document.getElementById('btnAgregar');
+            btn.disabled = true; btn.innerText = "Guardando...";
+
+            // Lógica para detectar si se usó la cámara o la galería
+            const fotoCamara = document.getElementById('fotoCamara').files[0];
+            const fotoGaleria = document.getElementById('fotoGaleria').files[0];
+            const archivoSeleccionado = fotoCamara || fotoGaleria;
+
+            const guardar = (url) => {
+                const [y, m, d] = fIn.split('-');
+                const [h, min] = hor.split(':');
+                medicamentos.push({
+                    paciente: pac, fechaInicio: fIn, medicamento: med,
+                    gramaje: gra, frecuenciaNum: fNum, frecuenciaTipo: fTip,
+                    foto: url, siguienteAlarma: new Date(y, m-1, d, h, min)
+                });
+                
+                // Limpiar los campos del medicamento
+                document.getElementById('medicamento').value = '';
+                document.getElementById('fotoCamara').value = '';
+                document.getElementById('fotoGaleria').value = '';
+                document.getElementById('gramaje').value = '';
+                document.getElementById('frecuenciaNum').value = '';
+                document.getElementById('hora').value = '';
+                
+                mostrarLista();
+                btn.disabled = false; btn.innerText = "➕ Agregar a la Lista";
+            };
+
+            if(archivoSeleccionado) {
+                procesarImagen(archivoSeleccionado, guardar);
+            } else {
+                guardar("");
+            }
+        }
+
+        function eliminarPaciente(nombre) {
+            if(confirm(`¿Eliminar a ${nombre} y sus medicinas?`)) {
+                medicamentos = medicamentos.filter(m => m.paciente !== nombre);
+                mostrarLista();
+            }
+        }
+
+        function eliminarMedicamento(index) {
+            if(confirm("¿Eliminar este medicamento?")) {
+                medicamentos.splice(index, 1);
+                mostrarLista();
+            }
+        }
+
+        function mostrarLista() {
+            const cont = document.getElementById('listaMedicamentos');
+            const dList = document.getElementById('listaPacientesOpciones');
+            if(medicamentos.length === 0) {
+                cont.innerHTML = '<p style="text-align:center; color:#777;">Sin datos.</p>';
+                dList.innerHTML = ""; return;
+            }
+
+            const grupos = {};
+            medicamentos.forEach((m, i) => {
+                if(!grupos[m.paciente]) grupos[m.paciente] = [];
+                grupos[m.paciente].push({data: m, id: i});
+            });
+
+            let html = "";
+            let opciones = "";
+            let primerPaciente = true;
+
+            for(const pac in grupos) {
+                opciones += `<option value="${pac}">`;
+                
+                // Divisor nativo para salto de página en PDF
+                if (!primerPaciente) html += `<div class="html2pdf__page-break"></div>`;
+                primerPaciente = false;
+
+                html += `
+                    <div class="paciente-grupo">
+                        <div class="paciente-titulo-contenedor">
+                            <h4>👤 Paciente: ${pac}</h4>
+                            <button class="btn-borrar-paciente" data-html2canvas-ignore="true" onclick="eliminarPaciente('${pac}')">🗑️ Borrar Paciente Completo</button>
+                        </div>
+                `;
+
+                grupos[pac].forEach(item => {
+                    const m = item.data;
+                    const f = m.siguienteAlarma.toLocaleString();
+                    html += `
+                        <div class="medicamento-item">
+                            <p><strong>Medicamento:</strong> ${m.medicamento} (${m.gramaje})</p>
+                            <p><strong>Frecuencia:</strong> Cada ${m.frecuenciaNum} ${m.frecuenciaTipo}</p>
+                            <p class="proxima-toma">⏳ Próxima: ${f}</p>
+                            ${m.foto ? `<img src="${m.foto}">` : ""}
+                            <div data-html2canvas-ignore="true">
+                                <button class="btn-eliminar" onclick="eliminarMedicamento(${item.id})">Eliminar este</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+            cont.innerHTML = html;
+            dList.innerHTML = opciones;
+        }
+
+        function exportarPDF() {
+            if(medicamentos.length === 0) return alert("Lista vacía");
+            const btn = document.getElementById('btnExportar');
+            btn.innerText = "Procesando..."; btn.disabled = true;
+
+            const opt = {
+                margin: 10,
+                filename: 'Reporte_Pacientes.pdf',
+                pagebreak: { mode: ['css', 'avoid-all'] },
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(document.getElementById('areaImpresion')).save().then(() => {
+                btn.innerText = "📄 Exportar PDF (Páginas separadas)"; btn.disabled = false;
+            });
+        }
+
+        setInterval(() => {
+            let ahora = new Date();
+            let cambio = false;
+            medicamentos.forEach(m => {
+                if(ahora >= m.siguienteAlarma) {
+                    alert(`⏰ ALARMA: ${m.paciente}\nTomar: ${m.medicamento} (${m.gramaje})`);
+                    let proxima = new Date(m.siguienteAlarma);
+                    while(proxima <= ahora) {
+                        if(m.frecuenciaTipo === 'horas') proxima.setHours(proxima.getHours() + m.frecuenciaNum);
+                        else if(m.frecuenciaTipo === 'días') proxima.setDate(proxima.getDate() + m.frecuenciaNum);
+                        else if(m.frecuenciaTipo === 'semanas') proxima.setDate(proxima.getDate() + (m.frecuenciaNum * 7));
+                        else if(m.frecuenciaTipo === 'meses') proxima.setMonth(proxima.getMonth() + m.frecuenciaNum);
+                    }
+                    m.siguienteAlarma = proxima;
+                    cambio = true;
+                }
+            });
+            if(cambio) mostrarLista();
+        }, 15000);
+    </script>
+</body>
+</html>
