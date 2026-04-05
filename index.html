@@ -105,6 +105,14 @@
             border-radius: 6px 6px 0 0;
             text-align: center;
         }
+        .paciente-datos-extra {
+            font-size: 14px;
+            margin-top: 8px;
+            background-color: rgba(0,0,0,0.15);
+            padding: 6px;
+            border-radius: 4px;
+            display: inline-block;
+        }
         .btn-borrar-paciente {
             background-color: #b71c1c;
             color: white;
@@ -146,7 +154,13 @@
             <input type="text" id="paciente" list="listaPacientesOpciones" placeholder="Escriba el nombre">
             <datalist id="listaPacientesOpciones"></datalist>
 
-            <label>Fecha de Inicio:</label>
+            <label>Fecha de Nacimiento:</label>
+            <input type="date" id="fechaNacimiento" onchange="calcularEdad()">
+
+            <label>Edad:</label>
+            <input type="number" id="edad" placeholder="Se calcula al poner la fecha" min="0">
+
+            <label>Fecha de Inicio del Tratamiento:</label>
             <input type="date" id="fechaInicio">
 
             <label>Medicamento:</label>
@@ -189,12 +203,10 @@
     <button type="button" class="export-btn" id="btnExportar" onclick="exportarPDF()">📄 Exportar PDF (Páginas separadas)</button>
 
     <script>
-        // Registro del Service Worker para la App
+        // REGISTRO DEL SERVICE WORKER PARA QUE SEA APP (PWA)
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', function() {
-            navigator.serviceWorker.register('sw.js').then(function(registration) {
-              console.log('ServiceWorker registrado correctamente.');
-            }, function(err) {
+            navigator.serviceWorker.register('sw.js').catch(function(err) {
               console.log('ServiceWorker fallo el registro: ', err);
             });
           });
@@ -203,8 +215,50 @@
         let medicamentos = [];
         document.getElementById('fechaInicio').valueAsDate = new Date();
 
+        // GUARDADO EN MEMORIA PERMANENTE DEL CELULAR
+        function guardarEnMemoria() {
+            localStorage.setItem('datosMedicosGuardados', JSON.stringify(medicamentos));
+        }
+
+        // CARGA DE MEMORIA AL INICIAR
+        function cargarDeMemoria() {
+            const datos = localStorage.getItem('datosMedicosGuardados');
+            if(datos) {
+                medicamentos = JSON.parse(datos);
+                // Restauramos el formato de las fechas de las alarmas
+                medicamentos.forEach(med => {
+                    if(med.siguienteAlarma) {
+                        med.siguienteAlarma = new Date(med.siguienteAlarma);
+                    }
+                });
+                mostrarLista();
+            }
+        }
+
+        // Iniciar carga de datos al abrir la app
+        cargarDeMemoria();
+
+        // CÁLCULO DE EDAD AUTOMÁTICO
+        function calcularEdad() {
+            const fechaNac = document.getElementById('fechaNacimiento').value;
+            if (fechaNac) {
+                const hoy = new Date();
+                const cumpleanos = new Date(fechaNac);
+                let edadCalculada = hoy.getFullYear() - cumpleanos.getFullYear();
+                const mes = hoy.getMonth() - cumpleanos.getMonth();
+                
+                if (mes < 0 || (mes === 0 && hoy.getDate() < cumpleanos.getDate())) {
+                    edadCalculada--;
+                }
+                
+                document.getElementById('edad').value = edadCalculada;
+            }
+        }
+
         function limpiarTodoElFormulario() {
             document.getElementById('paciente').value = '';
+            document.getElementById('fechaNacimiento').value = '';
+            document.getElementById('edad').value = '';
             document.getElementById('fechaInicio').valueAsDate = new Date();
             document.getElementById('medicamento').value = '';
             document.getElementById('fotoCamara').value = '';
@@ -239,6 +293,8 @@
 
         function procesarFormulario() {
             const pac = document.getElementById('paciente').value.trim().toUpperCase();
+            const fNac = document.getElementById('fechaNacimiento').value;
+            const edadPac = document.getElementById('edad').value.trim();
             const fIn = document.getElementById('fechaInicio').value;
             const med = document.getElementById('medicamento').value.trim();
             const gra = document.getElementById('gramaje').value.trim();
@@ -246,7 +302,7 @@
             const fTip = document.getElementById('frecuenciaTipo').value;
             const hor = document.getElementById('hora').value;
 
-            if(!pac || !fIn || !med || isNaN(fNum) || !hor || !gra) {
+            if(!pac || !fNac || !edadPac || !fIn || !med || isNaN(fNum) || !hor || !gra) {
                 alert("Complete todos los campos obligatorios."); return;
             }
 
@@ -261,9 +317,16 @@
                 const [y, m, d] = fIn.split('-');
                 const [h, min] = hor.split(':');
                 medicamentos.push({
-                    paciente: pac, fechaInicio: fIn, medicamento: med,
-                    gramaje: gra, frecuenciaNum: fNum, frecuenciaTipo: fTip,
-                    foto: url, siguienteAlarma: new Date(y, m-1, d, h, min)
+                    paciente: pac, 
+                    fechaNacimiento: fNac,
+                    edad: edadPac,
+                    fechaInicio: fIn, 
+                    medicamento: med,
+                    gramaje: gra, 
+                    frecuenciaNum: fNum, 
+                    frecuenciaTipo: fTip,
+                    foto: url, 
+                    siguienteAlarma: new Date(y, m-1, d, h, min)
                 });
                 
                 document.getElementById('medicamento').value = '';
@@ -273,6 +336,7 @@
                 document.getElementById('frecuenciaNum').value = '';
                 document.getElementById('hora').value = '';
                 
+                guardarEnMemoria(); // Actualiza la memoria local
                 mostrarLista();
                 btn.disabled = false; btn.innerText = "➕ Agregar a la Lista";
             };
@@ -287,6 +351,7 @@
         function eliminarPaciente(nombre) {
             if(confirm(`¿Eliminar a ${nombre} y sus medicinas?`)) {
                 medicamentos = medicamentos.filter(m => m.paciente !== nombre);
+                guardarEnMemoria(); // Actualiza la memoria local
                 mostrarLista();
             }
         }
@@ -294,6 +359,7 @@
         function eliminarMedicamento(index) {
             if(confirm("¿Eliminar este medicamento?")) {
                 medicamentos.splice(index, 1);
+                guardarEnMemoria(); // Actualiza la memoria local
                 mostrarLista();
             }
         }
@@ -321,10 +387,18 @@
                 if (!primerPaciente) html += `<div class="html2pdf__page-break"></div>`;
                 primerPaciente = false;
 
+                // Extraemos la información del primer registro de este paciente
+                const datosPac = grupos[pac][0].data;
+                const fNac = datosPac.fechaNacimiento ? datosPac.fechaNacimiento.split('-').reverse().join('/') : '--/--/----';
+                const edad = datosPac.edad ? datosPac.edad : '--';
+
                 html += `
                     <div class="paciente-grupo">
                         <div class="paciente-titulo-contenedor">
                             <h4>👤 Paciente: ${pac}</h4>
+                            <div class="paciente-datos-extra">
+                                🎂 Nacimiento: ${fNac} &nbsp;|&nbsp; ⏳ Edad: ${edad} años
+                            </div>
                             <button class="btn-borrar-paciente" data-html2canvas-ignore="true" onclick="eliminarPaciente('${pac}')">🗑️ Borrar Paciente</button>
                         </div>
                 `;
@@ -386,7 +460,10 @@
                     cambio = true;
                 }
             });
-            if(cambio) mostrarLista();
+            if(cambio) {
+                guardarEnMemoria(); // Guardamos las nuevas alarmas en la memoria
+                mostrarLista();
+            }
         }, 15000);
     </script>
 </body>
