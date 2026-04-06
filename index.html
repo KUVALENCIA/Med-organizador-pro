@@ -19,7 +19,7 @@
             --secondary-color: #757575;
             --camera-color: #ff9800;
             --whatsapp-color: #25D366;
-            --edit-color: #f57c00; /* Color para el botón de modificar */
+            --edit-color: #f57c00; 
         }
         html, body {
             height: auto;
@@ -87,7 +87,6 @@
             margin-top: 10px;
         }
         
-        /* Contenedor para botones de cada medicina */
         .acciones-medicamento {
             display: flex;
             gap: 10px;
@@ -171,6 +170,28 @@
             display: inline-block;
             margin-top: 5px;
         }
+
+        /* DISEÑO DE LA VENTANA EMERGENTE (MODAL) */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            width: 90%;
+            max-width: 400px;
+            margin: 0;
+            background: white;
+        }
+        .modal-botones {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -206,7 +227,8 @@
 
             <label>Frecuencia de Toma:</label>
             <div class="frecuencia-inputs">
-                <input type="number" id="frecuenciaNum" placeholder="Ej: 8" min="1">
+                <span>Cada</span>
+                <input type="number" id="frecuenciaNum" placeholder="8" min="1">
                 <select id="frecuenciaTipo">
                     <option value="horas">Hora(s)</option>
                     <option value="días">Día(s)</option>
@@ -231,6 +253,35 @@
 
     <button type="button" class="export-btn" id="btnExportar" onclick="exportarPDF()">📄 Exportar PDF (Páginas separadas)</button>
 
+    <div id="modalEdicion" class="modal-overlay" style="display: none;">
+        <div class="card modal-content">
+            <h3 style="margin-top:0;">✏️ Editar Tratamiento</h3>
+            <p id="editNombreMedicina" style="color:#00796b; font-weight:bold; text-align:center; margin-bottom:15px;"></p>
+            
+            <input type="hidden" id="editIndex">
+            
+            <label>Nueva Dosis / Gramaje:</label>
+            <input type="text" id="editGramaje" placeholder="Ej. 500mg - 1 tableta">
+            
+            <label>Nueva Frecuencia:</label>
+            <div class="frecuencia-inputs">
+                <span>Cada</span>
+                <input type="number" id="editFrecuenciaNum" min="1">
+                <select id="editFrecuenciaTipo">
+                    <option value="horas">Hora(s)</option>
+                    <option value="días">Día(s)</option>
+                    <option value="semanas">Semana(s)</option>
+                    <option value="meses">Mes(es)</option>
+                </select>
+            </div>
+            
+            <div class="modal-botones">
+                <button type="button" class="btn-limpiar" style="margin-top:0;" onclick="cerrarModal()">❌ Cancelar</button>
+                <button type="button" style="margin-top:0;" onclick="guardarEdicion()">💾 Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Registro del Service Worker
         if ('serviceWorker' in navigator) {
@@ -244,7 +295,6 @@
         let medicamentos = [];
         document.getElementById('fechaInicio').valueAsDate = new Date();
 
-        // SISTEMA INTELIGENTE DE GUARDADO Y RESCATE DE HISTORIAL
         function guardarEnMemoria() {
             let guardadoExitoso = false;
             let alertaMostrada = false;
@@ -277,7 +327,6 @@
             }
         }
 
-        // Carga Segura de Memoria
         function cargarDeMemoria() {
             const datos = localStorage.getItem('datosMedicosGuardados');
             if(datos) {
@@ -436,18 +485,47 @@
             }
         }
 
-        // NUEVA FUNCIÓN: Modificar la Dosis de un medicamento
-        function modificarDosis(index) {
-            const dosisActual = medicamentos[index].gramaje;
-            const nuevaDosis = prompt(`Ingresa la nueva dosis o gramaje para ${medicamentos[index].medicamento}:`, dosisActual);
+        // --- FUNCIONES DEL MODAL DE EDICIÓN ---
+        
+        function abrirModalEdicion(index) {
+            const med = medicamentos[index];
+            document.getElementById('editIndex').value = index;
+            document.getElementById('editNombreMedicina').innerText = `💊 ${med.medicamento}`;
+            document.getElementById('editGramaje').value = med.gramaje;
+            document.getElementById('editFrecuenciaNum').value = med.frecuenciaNum;
+            document.getElementById('editFrecuenciaTipo').value = med.frecuenciaTipo;
             
-            if (nuevaDosis !== null && nuevaDosis.trim() !== "") {
-                medicamentos[index].gramaje = nuevaDosis.trim();
-                guardarEnMemoria();
-                mostrarLista();
-                alert("✅ Dosis actualizada correctamente.");
-            }
+            // Mostrar la ventana
+            document.getElementById('modalEdicion').style.display = 'flex';
         }
+
+        function cerrarModal() {
+            document.getElementById('modalEdicion').style.display = 'none';
+        }
+
+        function guardarEdicion() {
+            const index = document.getElementById('editIndex').value;
+            const nuevoGramaje = document.getElementById('editGramaje').value.trim();
+            const nuevoFrecNum = parseInt(document.getElementById('editFrecuenciaNum').value);
+            const nuevoFrecTipo = document.getElementById('editFrecuenciaTipo').value;
+
+            if(!nuevoGramaje || isNaN(nuevoFrecNum) || nuevoFrecNum < 1) {
+                alert("Por favor completa los datos de la dosis y frecuencia correctamente.");
+                return;
+            }
+
+            // Actualizamos los datos del medicamento
+            medicamentos[index].gramaje = nuevoGramaje;
+            medicamentos[index].frecuenciaNum = nuevoFrecNum;
+            medicamentos[index].frecuenciaTipo = nuevoFrecTipo;
+            
+            guardarEnMemoria();
+            mostrarLista();
+            cerrarModal(); // Ocultamos la ventana
+            alert("✅ Tratamiento actualizado con éxito.");
+        }
+
+        // --- FIN FUNCIONES DEL MODAL ---
 
         function enviarWhatsApp(nombrePaciente) {
             const medsPaciente = medicamentos.filter(m => m.paciente === nombrePaciente);
@@ -464,7 +542,6 @@
             texto += `📋 *Tratamientos Activos:*\n`;
 
             medsPaciente.forEach(m => {
-                // Formateamos la fecha de inicio para que se vea bonita en WhatsApp
                 const fInicioFormato = m.fechaInicio ? m.fechaInicio.split('-').reverse().join('/') : '--/--/----';
                 
                 texto += `\n💊 *${m.medicamento}* (${m.gramaje})\n`;
@@ -532,7 +609,7 @@
                             ${m.foto ? `<img src="${m.foto}">` : ""}
                             
                             <div class="acciones-medicamento" data-html2canvas-ignore="true">
-                                <button class="btn-modificar" onclick="modificarDosis(${item.id})">✏️ Modificar Dosis</button>
+                                <button class="btn-modificar" onclick="abrirModalEdicion(${item.id})">✏️ Editar Tratamiento</button>
                                 <button class="btn-eliminar" onclick="eliminarMedicamento(${item.id})">🗑️ Eliminar</button>
                             </div>
                         </div>
