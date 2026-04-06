@@ -18,7 +18,8 @@
             --card-bg: #ffffff;
             --secondary-color: #757575;
             --camera-color: #ff9800;
-            --whatsapp-color: #25D366; /* Color oficial de WhatsApp */
+            --whatsapp-color: #25D366;
+            --edit-color: #f57c00; /* Color para el botón de modificar */
         }
         html, body {
             height: auto;
@@ -85,13 +86,26 @@
             background-color: var(--secondary-color);
             margin-top: 10px;
         }
-        .btn-eliminar {
-            background-color: var(--danger-color);
+        
+        /* Contenedor para botones de cada medicina */
+        .acciones-medicamento {
+            display: flex;
+            gap: 10px;
             margin-top: 10px;
+        }
+        .btn-modificar {
+            background-color: var(--edit-color);
+            margin-top: 0;
             padding: 8px;
             font-size: 14px;
         }
-        /* Estilo del botón de WhatsApp */
+        .btn-eliminar {
+            background-color: var(--danger-color);
+            margin-top: 0;
+            padding: 8px;
+            font-size: 14px;
+        }
+
         .btn-whatsapp {
             background-color: var(--whatsapp-color);
             color: white;
@@ -422,18 +436,27 @@
             }
         }
 
-        // NUEVA FUNCIÓN: Enviar información por WhatsApp con formato bonito
+        // NUEVA FUNCIÓN: Modificar la Dosis de un medicamento
+        function modificarDosis(index) {
+            const dosisActual = medicamentos[index].gramaje;
+            const nuevaDosis = prompt(`Ingresa la nueva dosis o gramaje para ${medicamentos[index].medicamento}:`, dosisActual);
+            
+            if (nuevaDosis !== null && nuevaDosis.trim() !== "") {
+                medicamentos[index].gramaje = nuevaDosis.trim();
+                guardarEnMemoria();
+                mostrarLista();
+                alert("✅ Dosis actualizada correctamente.");
+            }
+        }
+
         function enviarWhatsApp(nombrePaciente) {
-            // Filtramos las medicinas solo de este paciente
             const medsPaciente = medicamentos.filter(m => m.paciente === nombrePaciente);
             if(medsPaciente.length === 0) return;
 
-            // Obtenemos los datos generales
             const datosPac = medsPaciente[0];
             const fNac = datosPac.fechaNacimiento ? datosPac.fechaNacimiento.split('-').reverse().join('/') : '--/--/----';
             const edad = datosPac.edad ? datosPac.edad : '--';
 
-            // Armamos el texto con emojis
             let texto = `🏥 *REPORTE MÉDICO* 🏥\n\n`;
             texto += `👤 *Paciente:* ${nombrePaciente}\n`;
             texto += `🎂 *Nacimiento:* ${fNac}\n`;
@@ -441,17 +464,18 @@
             texto += `📋 *Tratamientos Activos:*\n`;
 
             medsPaciente.forEach(m => {
+                // Formateamos la fecha de inicio para que se vea bonita en WhatsApp
+                const fInicioFormato = m.fechaInicio ? m.fechaInicio.split('-').reverse().join('/') : '--/--/----';
+                
                 texto += `\n💊 *${m.medicamento}* (${m.gramaje})\n`;
+                texto += `   📅 *Inicio:* ${fInicioFormato}\n`;
                 texto += `   ⏱️ *Frecuencia:* Cada ${m.frecuenciaNum} ${m.frecuenciaTipo}\n`;
             });
 
             texto += `\n-----------------------\n`;
             texto += `_Reporte generado desde Organizador Médico Pro_ 🩺`;
 
-            // Codificamos el texto para que la URL de WhatsApp lo entienda
             const textoCodificado = encodeURIComponent(texto);
-            
-            // Abrimos WhatsApp
             window.open(`https://wa.me/?text=${textoCodificado}`, '_blank');
         }
 
@@ -497,14 +521,19 @@
                 grupos[pac].forEach(item => {
                     const m = item.data;
                     const f = m.siguienteAlarma.toLocaleString();
+                    const fInicioTexto = m.fechaInicio ? m.fechaInicio.split('-').reverse().join('/') : '--/--/----';
+
                     html += `
                         <div class="medicamento-item">
                             <p><strong>Medicamento:</strong> ${m.medicamento} (${m.gramaje})</p>
+                            <p><strong>📅 Inicio de toma:</strong> ${fInicioTexto}</p>
                             <p><strong>Frecuencia:</strong> Cada ${m.frecuenciaNum} ${m.frecuenciaTipo}</p>
                             <p class="proxima-toma">⏳ Próxima: ${f}</p>
                             ${m.foto ? `<img src="${m.foto}">` : ""}
-                            <div data-html2canvas-ignore="true">
-                                <button class="btn-eliminar" onclick="eliminarMedicamento(${item.id})">Eliminar este</button>
+                            
+                            <div class="acciones-medicamento" data-html2canvas-ignore="true">
+                                <button class="btn-modificar" onclick="modificarDosis(${item.id})">✏️ Modificar Dosis</button>
+                                <button class="btn-eliminar" onclick="eliminarMedicamento(${item.id})">🗑️ Eliminar</button>
                             </div>
                         </div>
                     `;
